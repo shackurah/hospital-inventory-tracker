@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StockRoom — Hospital Inventory Tracker</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#163832" />
+<link rel="icon" href="icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================================
+     DESIGN TOKENS — edit colors/fonts here, they apply everywhere
+     ============================================================ */
+  :root{
+    --bg: #F4F6F5;
+    --surface: #FFFFFF;
+    --surface-2: #EEF2F0;
+    --ink: #17231F;
+    --ink-soft: #4B5D57;
+    --primary: #163832;
+    --primary-soft: #2F5D53;
+    --primary-tint: #E4ECE9;
+    --line: #DDE3E0;
+    --amber: #97650A;
+    --amber-tint: #FBF1DC;
+    --red: #B3261E;
+    --red-tint: #FBEAE9;
+    --green: #2E7D4F;
+    --green-tint: #E7F3EC;
+    --radius: 10px;
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --shadow: 0 1px 2px rgba(23,35,31,0.06), 0 4px 16px rgba(23,35,31,0.05);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  button{ font-family: inherit; cursor:pointer; }
+  input, select{ font-family: inherit; }
+  ::selection{ background: var(--primary-tint); }
+
+  /* ---------- LOGIN SCREEN ---------- */
+  #login-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(255,255,255,0.06), transparent 40%),
+      linear-gradient(160deg, var(--primary) 0%, #0F2622 100%);
+    padding: 24px;
+  }
+  .login-card{
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom: 6px;
+  }
+  .brand-mark{
+    width:34px; height:34px;
+    border-radius:8px;
+    background: var(--primary);
+    position:relative;
+    flex-shrink:0;
+  }
+  .brand-mark::before, .brand-mark::after{
+    content:"";
+    position:absolute;
+    background: var(--surface);
+    border-radius:2px;
+  }
+  .brand-mark::before{ top:8px; bottom:8px; left:15px; width:4px; }
+  .brand-mark::after{ left:8px; right:8px; top:15px; height:4px; }
+  .brand-name{
+    font-family: var(--font-display);
+    font-weight:600;
+    font-size:1.4rem;
+    color: var(--primary);
+  }
+  .login-sub{
+    color: var(--ink-soft);
+    font-size:0.92rem;
+    margin-bottom:28px;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color: var(--ink-soft);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .field input{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius: 8px;
+    font-size:0.95rem;
+    background: var(--bg);
+  }
+  .field input:focus{
+    outline:2px solid var(--primary-soft);
+    outline-offset:1px;
+  }
+  .btn-primary{
+    width:100%;
+    padding:12px;
+    background: var(--primary);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-weight:600;
+    font-size:0.95rem;
+    margin-top:6px;
+  }
+  .btn-primary:hover{ background: var(--primary-soft); }
+  .btn-primary:disabled{ opacity:0.6; cursor:not-allowed; }
+  #login-error{
+    color: var(--red);
+    font-size:0.85rem;
+    margin-top:10px;
+    display:none;
+  }
+  .login-note{
+    font-size:0.78rem;
+    color: var(--ink-soft);
+    margin-top:20px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    line-height:1.5;
+  }
+
+  /* ---------- APP SHELL ---------- */
+  #app{ display:none; min-height:100vh; }
+  .shell{
+    display:grid;
+    grid-template-columns: 220px 1fr;
+    min-height:100vh;
+  }
+  .sidebar{
+    background: var(--primary);
+    color:#fff;
+    padding: 22px 16px;
+    display:flex;
+    flex-direction:column;
+  }
+  .sidebar .brand-name{ color:#fff; font-size:1.2rem; }
+  .sidebar .brand{ padding: 0 6px 24px 6px; }
+  .sidebar .brand-mark{ background: rgba(255,255,255,0.15); }
+  .sidebar .brand-mark::before, .sidebar .brand-mark::after{ background:#fff; }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px 12px;
+    border-radius:8px;
+    color: rgba(255,255,255,0.75);
+    font-size:0.9rem;
+    font-weight:500;
+    margin-bottom:2px;
+    background:transparent;
+    border:none;
+    width:100%;
+    text-align:left;
+  }
+  .nav-item:hover{ background: rgba(255,255,255,0.08); color:#fff; }
+  .nav-item.active{ background: rgba(255,255,255,0.14); color:#fff; }
+  .nav-dot{ width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.6; }
+  .sidebar-footer{
+    margin-top:auto;
+    padding-top:16px;
+    border-top:1px solid rgba(255,255,255,0.15);
+    font-size:0.78rem;
+    color: rgba(255,255,255,0.6);
+  }
+  .sidebar-footer button{
+    background:none; border:none; color:#fff;
+    font-size:0.82rem; font-weight:600; margin-top:8px;
+    text-decoration:underline;
+  }
+
+  .main{ padding: 22px 28px 60px 28px; max-width:1180px; }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom: 22px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .page-title{
+    font-family: var(--font-display);
+    font-size:1.6rem;
+    font-weight:600;
+  }
+  .page-sub{ color:var(--ink-soft); font-size:0.88rem; margin-top:2px; }
+
+  /* sync pulse — signature element */
+  .sync-pill{
+    display:flex; align-items:center; gap:8px;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:7px 14px 7px 10px;
+    font-size:0.82rem;
+    font-weight:600;
+    box-shadow: var(--shadow);
+  }
+  .pulse-dot{
+    width:9px; height:9px; border-radius:50%;
+    background: var(--green);
+    position:relative;
+  }
+  .pulse-dot::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:50%;
+    background: inherit;
+    animation: pulse 1.8s ease-out infinite;
+  }
+  .pulse-dot.offline{ background: var(--ink-soft); }
+  .pulse-dot.offline::after{ animation:none; }
+  .pulse-dot.pending{ background: var(--amber); }
+  @keyframes pulse{
+    0%{ transform:scale(1); opacity:0.7; }
+    100%{ transform:scale(2.6); opacity:0; }
+  }
+  .sync-pill button{
+    background:none; border:none; color:var(--primary);
+    font-weight:600; font-size:0.8rem; text-decoration:underline;
+    margin-left:4px;
+  }
+
+  /* cards */
+  .grid-4{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  @media (max-width:900px){ .grid-4{ grid-template-columns:repeat(2,1fr); } }
+  .stat-card{
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:16px 18px;
+  }
+  .stat-card .label{ font-size:0.78rem; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.03em; }
+  .stat-card .value{ font-family:var(--font-mono); font-size:1.7rem; font-weight:600; margin-top:6px; }
+  .stat-card.warn .value{ color:var(--amber); }
+  .stat-card.danger .value{ color:var(--red); }
+
+  .panel{
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom:20px;
+    overflow:hidden;
+  }
+  .panel-head{
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:10px;
+  }
+  .panel-head h3{ font-size:1rem; font-weight:600; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.88rem; }
+  th{
+    text-align:left; padding:10px 18px; background:var(--surface-2);
+    font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--ink-soft); font-weight:700;
+  }
+  td{ padding:11px 18px; border-top:1px solid var(--line); vertical-align:middle; }
+  tr:hover td{ background: var(--bg); }
+  .mono{ font-family:var(--font-mono); }
+  .tag{
+    display:inline-block; padding:3px 9px; border-radius:999px;
+    font-size:0.72rem; font-weight:700;
+  }
+  .tag.ok{ background:var(--green-tint); color:var(--green); }
+  .tag.warn{ background:var(--amber-tint); color:var(--amber); }
+  .tag.danger{ background:var(--red-tint); color:var(--red); }
+  .tag.neutral{ background: var(--surface-2); color:var(--ink-soft); }
+
+  .qty-btn{
+    width:26px; height:26px; border-radius:6px; border:1px solid var(--line);
+    background:var(--surface); font-weight:700; font-size:0.9rem; line-height:1;
+  }
+  .qty-btn:hover{ background:var(--surface-2); }
+
+  .btn{
+    padding:9px 16px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface); font-weight:600; font-size:0.85rem;
+  }
+  .btn.primary{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .btn.primary:hover{ background:var(--primary-soft); }
+  .btn:hover{ background:var(--surface-2); }
+
+  .search-input{
+    padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+    font-size:0.86rem; min-width:200px; background:var(--bg);
+  }
+  select.search-input{ min-width:150px; }
+
+  /* form */
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:18px; }
+  @media (max-width:700px){ .form-grid{ grid-template-columns:1fr; } }
+  .form-grid .field{ margin-bottom:0; }
+  .form-grid input, .form-grid select{
+    width:100%; padding:10px 12px; border:1px solid var(--line);
+    border-radius:8px; font-size:0.9rem; background:var(--bg);
+  }
+  .form-actions{ padding: 0 18px 18px 18px; }
+
+  .empty-state{ padding:40px 20px; text-align:center; color:var(--ink-soft); }
+
+  .toast{
+    position:fixed; bottom:20px; right:20px;
+    background: var(--primary); color:#fff;
+    padding:12px 18px; border-radius:8px;
+    font-size:0.86rem; font-weight:600;
+    box-shadow: var(--shadow);
+    display:none; z-index:50;
+    max-width:320px;
+  }
+
+  .mobile-nav{ display:none; }
+  @media (max-width:820px){
+    .shell{ grid-template-columns:1fr; }
+    .sidebar{ display:none; }
+    .mobile-nav{
+      display:flex; position:fixed; bottom:0; left:0; right:0;
+      background: var(--primary); z-index:40;
+      padding: 8px 6px calc(8px + env(safe-area-inset-bottom)) 6px;
+    }
+    .mobile-nav .nav-item{ flex-direction:column; gap:4px; text-align:center; font-size:0.68rem; }
+    .main{ padding-bottom:90px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand"><div class="brand-mark"></div><div class="brand-name">StockRoom</div></div>
+    <div class="login-sub">Hospital commodity inventory tracker</div>
+    <div class="field">
+      <label for="login-username">Username</label>
+      <input id="login-username" type="text" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="login-btn">Sign in</button>
+    <div id="login-error"></div>
+    <div class="login-note" id="login-note">
+      First time here? You need your Apps Script URL set up. <button id="show-config" style="text-decoration:underline;background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;">Set it now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
+<div id="app">
+  <div class="shell">
+    <div class="sidebar">
+      <div class="brand"><div class="brand-mark"></div><div class="brand-name">StockRoom</div></div>
+      <button class="nav-item active" data-page="dashboard"><span class="nav-dot"></span> Dashboard</button>
+      <button class="nav-item" data-page="inventory"><span class="nav-dot"></span> Inventory</button>
+      <button class="nav-item" data-page="add"><span class="nav-dot"></span> Add Item</button>
+      <button class="nav-item" data-page="log"><span class="nav-dot"></span> Usage Log</button>
+      <div class="sidebar-footer">
+        <div id="user-label">—</div>
+        <button id="logout-btn">Sign out</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="page-title" id="page-title">Dashboard</div>
+          <div class="page-sub" id="page-sub">Live overview of stock across departments</div>
+        </div>
+        <div class="sync-pill">
+          <span class="pulse-dot" id="pulse-dot"></span>
+          <span id="sync-label">Online</span>
+          <button id="sync-now-btn" style="display:none;">Sync now</button>
+        </div>
+      </div>
+
+      <div id="page-dashboard"></div>
+      <div id="page-inventory" style="display:none;"></div>
+      <div id="page-add" style="display:none;"></div>
+      <div id="page-log" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="mobile-nav">
+    <button class="nav-item active" data-page="dashboard"><span class="nav-dot"></span> Dashboard</button>
+    <button class="nav-item" data-page="inventory"><span class="nav-dot"></span> Inventory</button>
+    <button class="nav-item" data-page="add"><span class="nav-dot"></span> Add</button>
+    <button class="nav-item" data-page="log"><span class="nav-dot"></span> Log</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   CONFIG — paste your Apps Script Web App URL between the quotes
+   ================================================================ */
+const CONFIG = {
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyqkcJXyWtbsDql3fTi3hep-4tnjVt_gFmYo7fHurpeQjeEtL_MZLbc9FO7URLVdt-W/exec"
+};
+
+/* ================================================================
+   STORAGE HELPERS  (local device storage — works offline)
+   ================================================================ */
+const Store = {
+  get(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } },
+  set(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+};
+
+let STATE = {
+  user: Store.get("sr_user", null),
+  inventory: Store.get("sr_inventory", []),
+  usageLog: Store.get("sr_usageLog", []),
+  queue: Store.get("sr_queue", []),
+  currentPage: "dashboard",
+  deptFilter: "all",
+  searchTerm: ""
+};
+
+function saveState(){
+  Store.set("sr_inventory", STATE.inventory);
+  Store.set("sr_usageLog", STATE.usageLog);
+  Store.set("sr_queue", STATE.queue);
+}
+
+/* ================================================================
+   API HELPERS
+   ================================================================ */
+async function apiPost(action, payload){
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ action, ...payload })
+  });
+  return res.json();
+}
+async function apiGetData(){
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL + "?action=getData");
+  return res.json();
+}
+
+function isOnline(){ return navigator.onLine; }
+
+/* ================================================================
+   TOAST
+   ================================================================ */
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>{ el.style.display="none"; }, 3200);
+}
+
+/* ================================================================
+   LOGIN
+   ================================================================ */
+document.getElementById("show-config").addEventListener("click", ()=>{
+  const url = prompt("Paste your Apps Script Web App URL:", CONFIG.APPS_SCRIPT_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE" ? "" : CONFIG.APPS_SCRIPT_URL);
+  if(url){ CONFIG.APPS_SCRIPT_URL = url.trim(); Store.set("sr_config_url", CONFIG.APPS_SCRIPT_URL); toast("URL saved for this device"); }
+});
+// load saved URL if present
+const savedUrl = Store.get("sr_config_url", null);
+if(savedUrl) CONFIG.APPS_SCRIPT_URL = savedUrl;
+
+document.getElementById("login-btn").addEventListener("click", handleLogin);
+document.getElementById("login-password").addEventListener("keydown", e=>{ if(e.key==="Enter") handleLogin(); });
+
+async function handleLogin(){
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errEl = document.getElementById("login-error");
+  errEl.style.display = "none";
+
+  if(!username || !password){ errEl.textContent = "Enter a username and password."; errEl.style.display="block"; return; }
+  if(CONFIG.APPS_SCRIPT_URL.includes("PASTE_YOUR")){ errEl.textContent = "Set your Apps Script URL first (link below)."; errEl.style.display="block"; return; }
+
+  const btn = document.getElementById("login-btn");
+  btn.disabled = true; btn.textContent = "Signing in...";
+
+  try{
+    const result = await apiPost("login", { username, password });
+    if(result.success){
+      STATE.user = result.user;
+      Store.set("sr_user", STATE.user);
+      await initialSync();
+      enterApp();
+    } else {
+      errEl.textContent = result.error || "Login failed.";
+      errEl.style.display = "block";
+    }
+  }catch(e){
+    errEl.textContent = "Couldn't reach the server. Check the Apps Script URL and your connection.";
+    errEl.style.display = "block";
+  }
+  btn.disabled = false; btn.textContent = "Sign in";
+}
+
+async function initialSync(){
+  try{
+    const data = await apiGetData();
+    STATE.inventory = data.inventory || [];
+    STATE.usageLog = data.usageLog || [];
+    saveState();
+  }catch(e){ /* offline first login not supported; fine if it fails post-login */ }
+}
+
+function enterApp(){
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("user-label").textContent = STATE.user.fullName + " · " + STATE.user.department;
+  renderAll();
+}
+
+document.getElementById("logout-btn").addEventListener("click", ()=>{
+  STATE.user = null;
+  localStorage.removeItem("sr_user");
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+});
+
+// auto-login if session cached
+if(STATE.user){ enterApp(); }
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+document.querySelectorAll(".nav-item").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const page = btn.dataset.page;
+    STATE.currentPage = page;
+    document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
+    ["dashboard","inventory","add","log"].forEach(p=>{
+      document.getElementById("page-"+p).style.display = (p===page) ? "block" : "none";
+    });
+    const titles = {
+      dashboard:["Dashboard","Live overview of stock across departments"],
+      inventory:["Inventory","Search, filter, and adjust stock levels"],
+      add:["Add Item","Register a new commodity into stock"],
+      log:["Usage Log","Recent stock movements"]
+    };
+    document.getElementById("page-title").textContent = titles[page][0];
+    document.getElementById("page-sub").textContent = titles[page][1];
+    renderPage(page);
+  });
+});
+
+/* ================================================================
+   RENDER — DASHBOARD
+   ================================================================ */
+function scopedInventory(){
+  if(STATE.user.role === "Admin") return STATE.inventory;
+  return STATE.inventory.filter(i => i.Department === STATE.user.department);
+}
+
+function isExpiringSoon(dateStr){
+  if(!dateStr) return false;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return false;
+  const days = (d - new Date()) / (1000*60*60*24);
+  return days <= 30 && days >= 0;
+}
+function isExpired(dateStr){
+  if(!dateStr) return false;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return false;
+  return d < new Date();
+}
+function isLowStock(item){
+  return Number(item["Qty In Stock"]) <= Number(item["Reorder Level"] || 0);
+}
+
+function renderDashboard(){
+  const items = scopedInventory();
+  const lowStock = items.filter(isLowStock);
+  const expiringSoon = items.filter(i => isExpiringSoon(i["Expiry Date"]));
+  const expired = items.filter(i => isExpired(i["Expiry Date"]));
+  const depts = new Set(STATE.inventory.map(i=>i.Department)).size;
+
+  let html = `<div class="grid-4">
+    <div class="stat-card"><div class="label">Total Items</div><div class="value">${items.length}</div></div>
+    <div class="stat-card warn"><div class="label">Low Stock</div><div class="value">${lowStock.length}</div></div>
+    <div class="stat-card warn"><div class="label">Expiring ≤30 days</div><div class="value">${expiringSoon.length}</div></div>
+    <div class="stat-card danger"><div class="label">Expired</div><div class="value">${expired.length}</div></div>
+  </div>`;
+
+  html += `<div class="panel"><div class="panel-head"><h3>Needs attention</h3></div>`;
+  const attention = [...expired.map(i=>({i,type:"expired"})), ...lowStock.map(i=>({i,type:"low"})), ...expiringSoon.map(i=>({i,type:"expiring"}))];
+  if(attention.length === 0){
+    html += `<div class="empty-state">Nothing urgent right now. Stock levels and expiry dates look healthy.</div>`;
+  } else {
+    html += `<table><thead><tr><th>Item</th><th>Department</th><th>Qty</th><th>Expiry</th><th>Status</th></tr></thead><tbody>`;
+    attention.slice(0,15).forEach(({i,type})=>{
+      const tag = type==="expired" ? '<span class="tag danger">Expired</span>' :
+                  type==="low" ? '<span class="tag warn">Low stock</span>' :
+                  '<span class="tag warn">Expiring soon</span>';
+      html += `<tr><td>${i["Item Name"]}</td><td>${i.Department}</td><td class="mono">${i["Qty In Stock"]} ${i.Unit||""}</td><td>${i["Expiry Date"]||"—"}</td><td>${tag}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</div>`;
+  document.getElementById("page-dashboard").innerHTML = html;
+}
+
+/* ================================================================
+   RENDER — INVENTORY
+   ================================================================ */
+function renderInventory(){
+  const el = document.getElementById("page-inventory");
+  const depts = [...new Set(STATE.inventory.map(i=>i.Department))];
+
+  let items = scopedInventory();
+  if(STATE.deptFilter !== "all") items = items.filter(i=>i.Department === STATE.deptFilter);
+  if(STATE.searchTerm) items = items.filter(i => (i["Item Name"]||"").toLowerCase().includes(STATE.searchTerm.toLowerCase()));
+
+  let html = `<div class="panel">
+    <div class="panel-head">
+      <h3>All items (${items.length})</h3>
+      <div style="display:flex; gap:8px;">
+        <input class="search-input" id="inv-search" placeholder="Search item..." value="${STATE.searchTerm}"/>
+        ${STATE.user.role==="Admin" ? `<select class="search-input" id="dept-filter">
+          <option value="all">All departments</option>
+          ${depts.map(d=>`<option value="${d}" ${STATE.deptFilter===d?"selected":""}>${d}</option>`).join("")}
+        </select>` : ""}
+      </div>
+    </div>`;
+
+  if(items.length === 0){
+    html += `<div class="empty-state">No items found. Try a different search, or add a new item.</div>`;
+  } else {
+    html += `<table><thead><tr><th>Item</th><th>Category</th><th>Department</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Adjust</th></tr></thead><tbody>`;
+    items.forEach(i=>{
+      const low = isLowStock(i);
+      const expired = isExpired(i["Expiry Date"]);
+      html += `<tr>
+        <td>${i["Item Name"]}</td>
+        <td>${i.Category||"—"}</td>
+        <td>${i.Department}</td>
+        <td class="mono">${i["Batch Number"]||"—"}</td>
+        <td>${i["Expiry Date"]||"—"} ${expired ? '<span class="tag danger">Expired</span>' : (isExpiringSoon(i["Expiry Date"]) ? '<span class="tag warn">Soon</span>' : "")}</td>
+        <td class="mono">${i["Qty In Stock"]} ${i.Unit||""} ${low ? '<span class="tag warn">Low</span>' : ""}</td>
+        <td>
+          <button class="qty-btn" data-id="${i.ID}" data-delta="-1">−</button>
+          <button class="qty-btn" data-id="${i.ID}" data-delta="1">+</button>
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+
+  const searchInput = document.getElementById("inv-search");
+  if(searchInput) searchInput.addEventListener("input", e=>{ STATE.searchTerm = e.target.value; renderInventory(); });
+  const deptSelect = document.getElementById("dept-filter");
+  if(deptSelect) deptSelect.addEventListener("change", e=>{ STATE.deptFilter = e.target.value; renderInventory(); });
+
+  el.querySelectorAll(".qty-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=> adjustStock(btn.dataset.id, Number(btn.dataset.delta)));
+  });
+}
+
+async function adjustStock(itemId, delta){
+  const item = STATE.inventory.find(i=>i.ID===itemId);
+  if(!item) return;
+  item["Qty In Stock"] = Number(item["Qty In Stock"]) + delta;
+  item["Last Updated"] = new Date().toISOString();
+
+  const change = { itemId, action: delta>0 ? "Add" : "Remove", qtyChanged: delta, reason: delta>0 ? "Manual restock" : "Manual deduction" };
+  STATE.usageLog.unshift({ Timestamp: new Date().toISOString(), "Item ID": itemId, "Item Name": item["Item Name"], Department: item.Department, Action: change.action, "Qty Changed": delta, Reason: change.reason, User: STATE.user.username });
+
+  await queueOrSend({ type:"updateStock", change });
+  saveState();
+  renderInventory();
+  renderDashboard();
+  updateSyncPill();
+}
+
+/* ================================================================
+   RENDER — ADD ITEM
+   ================================================================ */
+function renderAddForm(){
+  const el = document.getElementById("page-add");
+  el.innerHTML = `<div class="panel">
+    <div class="panel-head"><h3>New commodity</h3></div>
+    <div class="form-grid">
+      <div class="field"><label>Item name</label><input id="f-name"/></div>
+      <div class="field"><label>Category</label><input id="f-category" placeholder="e.g. PPE, Medication, Consumable"/></div>
+      <div class="field"><label>Department</label><input id="f-department" value="${STATE.user.role==='Admin' ? '' : STATE.user.department}"/></div>
+      <div class="field"><label>Unit</label><input id="f-unit" placeholder="e.g. boxes, vials, pcs"/></div>
+      <div class="field"><label>Starting quantity</label><input id="f-qty" type="number" value="0"/></div>
+      <div class="field"><label>Reorder level</label><input id="f-reorder" type="number" value="0"/></div>
+      <div class="field"><label>Batch number</label><input id="f-batch"/></div>
+      <div class="field"><label>Expiry date</label><input id="f-expiry" type="date"/></div>
+    </div>
+    <div class="form-actions"><button class="btn primary" id="add-item-btn">Add item</button></div>
+  </div>`;
+
+  document.getElementById("add-item-btn").addEventListener("click", async ()=>{
+    const name = document.getElementById("f-name").value.trim();
+    const department = document.getElementById("f-department").value.trim();
+    if(!name || !department){ toast("Item name and department are required."); return; }
+
+    const item = {
+      itemName: name,
+      category: document.getElementById("f-category").value.trim(),
+      department: department,
+      unit: document.getElementById("f-unit").value.trim(),
+      qtyInStock: Number(document.getElementById("f-qty").value) || 0,
+      reorderLevel: Number(document.getElementById("f-reorder").value) || 0,
+      batchNumber: document.getElementById("f-batch").value.trim(),
+      expiryDate: document.getElementById("f-expiry").value
+    };
+
+    const tempId = "TEMP" + Date.now();
+    STATE.inventory.unshift({
+      ID: tempId, "Item Name": item.itemName, Category: item.category, Department: item.department,
+      Unit: item.unit, "Qty In Stock": item.qtyInStock, "Reorder Level": item.reorderLevel,
+      "Batch Number": item.batchNumber, "Expiry Date": item.expiryDate,
+      "Last Updated": new Date().toISOString(), "Updated By": STATE.user.username
+    });
+
+    await queueOrSend({ type:"addItem", item });
+    saveState();
+    toast("Item added" + (isOnline() ? "" : " (will sync when back online)"));
+    renderDashboard();
+    document.querySelector('.nav-item[data-page="inventory"]').click();
+  });
+}
+
+/* ================================================================
+   RENDER — USAGE LOG
+   ================================================================ */
+function renderLog(){
+  const el = document.getElementById("page-log");
+  let log = STATE.user.role === "Admin" ? STATE.usageLog : STATE.usageLog.filter(l=>l.Department===STATE.user.department);
+  let html = `<div class="panel"><div class="panel-head"><h3>Recent activity</h3></div>`;
+  if(log.length===0){
+    html += `<div class="empty-state">No activity recorded yet.</div>`;
+  } else {
+    html += `<table><thead><tr><th>Time</th><th>Item</th><th>Department</th><th>Action</th><th>Qty</th><th>User</th></tr></thead><tbody>`;
+    log.slice(0,100).forEach(l=>{
+      const tag = l.Action==="Add" ? '<span class="tag ok">Add</span>' : l.Action==="Remove" ? '<span class="tag danger">Remove</span>' : '<span class="tag neutral">Adjust</span>';
+      html += `<tr><td>${new Date(l.Timestamp).toLocaleString()}</td><td>${l["Item Name"]}</td><td>${l.Department}</td><td>${tag}</td><td class="mono">${l["Qty Changed"]}</td><td>${l.User}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function renderPage(page){
+  if(page==="dashboard") renderDashboard();
+  if(page==="inventory") renderInventory();
+  if(page==="add") renderAddForm();
+  if(page==="log") renderLog();
+}
+function renderAll(){ renderDashboard(); renderInventory(); renderAddForm(); renderLog(); }
+
+/* ================================================================
+   OFFLINE QUEUE + SYNC
+   ================================================================ */
+async function queueOrSend(change){
+  if(isOnline() && !CONFIG.APPS_SCRIPT_URL.includes("PASTE_YOUR")){
+    try{
+      if(change.type==="addItem") await apiPost("addItem", { item: change.item, user: STATE.user.username });
+      if(change.type==="updateStock") await apiPost("updateStock", { change: change.change, user: STATE.user.username });
+      return;
+    }catch(e){ /* fall through to queue */ }
+  }
+  STATE.queue.push(change);
+  saveState();
+}
+
+async function flushQueue(){
+  if(!isOnline() || STATE.queue.length===0 || CONFIG.APPS_SCRIPT_URL.includes("PASTE_YOUR")) return;
+  updateSyncPill(true);
+  try{
+    const result = await apiPost("syncQueue", { queue: STATE.queue, user: STATE.user.username });
+    if(result.success){
+      STATE.queue = [];
+      if(result.freshData){
+        STATE.inventory = result.freshData.inventory || STATE.inventory;
+        STATE.usageLog = result.freshData.usageLog || STATE.usageLog;
+      }
+      saveState();
+      renderAll();
+      toast("Synced with server");
+    }
+  }catch(e){ /* stay queued, try again later */ }
+  updateSyncPill();
+}
+
+function updateSyncPill(syncing){
+  const dot = document.getElementById("pulse-dot");
+  const label = document.getElementById("sync-label");
+  const syncBtn = document.getElementById("sync-now-btn");
+  dot.classList.remove("offline","pending");
+  if(syncing){ label.textContent = "Syncing..."; }
+  else if(!isOnline()){ dot.classList.add("offline"); label.textContent = "Offline"; }
+  else if(STATE.queue.length>0){ dot.classList.add("pending"); label.textContent = STATE.queue.length + " pending"; }
+  else { label.textContent = "Online"; }
+  syncBtn.style.display = (isOnline() && STATE.queue.length>0) ? "inline" : "none";
+}
+
+document.getElementById("sync-now-btn").addEventListener("click", flushQueue);
+window.addEventListener("online", ()=>{ updateSyncPill(); flushQueue(); });
+window.addEventListener("offline", ()=> updateSyncPill());
+setInterval(()=>{ if(STATE.user){ flushQueue(); updateSyncPill(); } }, 30000);
+updateSyncPill();
+
+/* ================================================================
+   SERVICE WORKER (enables offline app loading)
+   ================================================================ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=> navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
