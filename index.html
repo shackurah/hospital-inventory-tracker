@@ -379,9 +379,6 @@
     </div>
     <button class="btn-primary" id="login-btn">Sign in</button>
     <div id="login-error"></div>
-    <div class="login-note" id="login-note">
-      First time here? You need your Apps Script URL set up. <button id="show-config" style="text-decoration:underline;background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;">Set it now</button>
-    </div>
   </div>
 </div>
 
@@ -397,6 +394,7 @@
       <button class="nav-item" data-page="inventory"><span class="nav-dot"></span> Inventory</button>
       <button class="nav-item" data-page="add"><span class="nav-dot"></span> Add Item</button>
       <button class="nav-item" data-page="log"><span class="nav-dot"></span> Usage Log</button>
+      <button class="nav-item" data-page="users" id="nav-users" style="display:none;"><span class="nav-dot"></span> Users</button>
       <div class="sidebar-footer">
         <div id="user-label">—</div>
         <button id="logout-btn">Sign out</button>
@@ -420,6 +418,7 @@
       <div id="page-inventory" style="display:none;"></div>
       <div id="page-add" style="display:none;"></div>
       <div id="page-log" style="display:none;"></div>
+      <div id="page-users" style="display:none;"></div>
     </div>
   </div>
 
@@ -440,7 +439,7 @@
 const CONFIG = {
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyqkcJXyWtbsDql3fTi3hep-4tnjVt_gFmYo7fHurpeQjeEtL_MZLbc9FO7URLVdt-W/exec",
   FACILITY_NAME: "General Hospital Warwar",
-  DEPARTMENTS: ["Laboratory","Pharmacy","Card Room","Medical Unit","Maternity Unit","ART Unit","Surgical Unit","TB Unit","Clinical Unit"]
+  DEPARTMENTS: ["Lab","Pharmacy","Card Room","Medical Unit","Maternity Unit","ART Unit","Surgical Unit","TB Unit","Clinical Unit"]
 };
 
 // Show the facility name on the login screen, sidebar, and browser tab
@@ -503,14 +502,6 @@ function toast(msg){
 /* ================================================================
    LOGIN
    ================================================================ */
-document.getElementById("show-config").addEventListener("click", ()=>{
-  const url = prompt("Paste your Apps Script Web App URL:", CONFIG.APPS_SCRIPT_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE" ? "" : CONFIG.APPS_SCRIPT_URL);
-  if(url){ CONFIG.APPS_SCRIPT_URL = url.trim(); Store.set("sr_config_url", CONFIG.APPS_SCRIPT_URL); toast("URL saved for this device"); }
-});
-// load saved URL if present
-const savedUrl = Store.get("sr_config_url", null);
-if(savedUrl) CONFIG.APPS_SCRIPT_URL = savedUrl;
-
 document.getElementById("login-btn").addEventListener("click", handleLogin);
 document.getElementById("login-password").addEventListener("keydown", e=>{ if(e.key==="Enter") handleLogin(); });
 
@@ -557,6 +548,9 @@ function enterApp(){
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("user-label").textContent = STATE.user.fullName + " · " + STATE.user.department;
+  if(STATE.user.role === "Admin"){
+    document.getElementById("nav-users").style.display = "flex";
+  }
   renderAll();
 }
 
@@ -578,14 +572,15 @@ document.querySelectorAll(".nav-item").forEach(btn=>{
     const page = btn.dataset.page;
     STATE.currentPage = page;
     document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
-    ["dashboard","inventory","add","log"].forEach(p=>{
+    ["dashboard","inventory","add","log","users"].forEach(p=>{
       document.getElementById("page-"+p).style.display = (p===page) ? "block" : "none";
     });
     const titles = {
       dashboard:["Dashboard","Live overview of stock across departments"],
       inventory:["Inventory","Search, filter, and adjust stock levels"],
       add:["Add Item","Register a new commodity into stock"],
-      log:["Usage Log","Recent stock movements"]
+      log:["Usage Log","Recent stock movements"],
+      users:["Users","Manage staff accounts and access"]
     };
     document.getElementById("page-title").textContent = titles[page][0];
     document.getElementById("page-sub").textContent = titles[page][1];
@@ -803,13 +798,109 @@ function renderLog(){
   el.innerHTML = html;
 }
 
+/* ================================================================
+   RENDER — USERS (Admin only)
+   ================================================================ */
+async function renderUsersPage(){
+  const el = document.getElementById("page-users");
+  if(STATE.user.role !== "Admin"){
+    el.innerHTML = `<div class="panel"><div class="empty-state">Only Admin accounts can manage users.</div></div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="panel"><div class="panel-head"><h3>Staff accounts</h3></div>
+    <div id="users-list-wrap"><div class="empty-state">Loading...</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>Add a new user</h3></div>
+    <div class="form-grid">
+      <div class="field"><label>Full name</label><input id="u-fullname"/></div>
+      <div class="field"><label>Username</label><input id="u-username"/></div>
+      <div class="field"><label>Password</label><input id="u-password" type="text"/></div>
+      <div class="field"><label>Department</label>
+        <select id="u-department">
+          ${CONFIG.DEPARTMENTS.map(d=>`<option value="${d}">${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Role</label>
+        <select id="u-role">
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn primary" id="create-user-btn">Create user</button></div>
+  </div>`;
+
+  document.getElementById("create-user-btn").addEventListener("click", handleCreateUser);
+
+  if(!isOnline()){
+    document.getElementById("users-list-wrap").innerHTML = `<div class="empty-state">You're offline. Connect to the internet to view or add users.</div>`;
+    return;
+  }
+
+  try{
+    const result = await apiPost("getUsers", { requestingUser: STATE.user.username });
+    if(result.success){
+      renderUsersList(result.users);
+    } else {
+      document.getElementById("users-list-wrap").innerHTML = `<div class="empty-state">${result.error || "Couldn't load users."}</div>`;
+    }
+  }catch(e){
+    document.getElementById("users-list-wrap").innerHTML = `<div class="empty-state">Couldn't reach the server.</div>`;
+  }
+}
+
+function renderUsersList(users){
+  let html = `<table><thead><tr><th>Full name</th><th>Username</th><th>Department</th><th>Role</th></tr></thead><tbody>`;
+  users.forEach(u=>{
+    html += `<tr><td>${u.fullName}</td><td class="mono">${u.username}</td><td>${u.department}</td><td><span class="tag ${u.role==='Admin' ? 'ok' : 'neutral'}">${u.role}</span></td></tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById("users-list-wrap").innerHTML = html;
+}
+
+async function handleCreateUser(){
+  const fullName = document.getElementById("u-fullname").value.trim();
+  const username = document.getElementById("u-username").value.trim();
+  const password = document.getElementById("u-password").value.trim();
+  const department = document.getElementById("u-department").value;
+  const role = document.getElementById("u-role").value;
+
+  if(!fullName || !username || !password){ toast("Fill in full name, username, and password."); return; }
+  if(!isOnline()){ toast("You need to be online to create a user."); return; }
+
+  const btn = document.getElementById("create-user-btn");
+  btn.disabled = true; btn.textContent = "Creating...";
+
+  try{
+    const result = await apiPost("createUser", {
+      newUser: { fullName, username, password, department, role },
+      requestingUser: STATE.user.username
+    });
+    if(result.success){
+      toast("User created");
+      renderUsersPage();
+    } else {
+      toast(result.error || "Couldn't create user.");
+    }
+  }catch(e){
+    toast("Couldn't reach the server.");
+  }
+  btn.disabled = false; btn.textContent = "Create user";
+}
+
 function renderPage(page){
   if(page==="dashboard") renderDashboard();
   if(page==="inventory") renderInventory();
   if(page==="add") renderAddForm();
   if(page==="log") renderLog();
+  if(page==="users") renderUsersPage();
 }
-function renderAll(){ renderDashboard(); renderInventory(); renderAddForm(); renderLog(); }
+function renderAll(){
+  renderDashboard(); renderInventory(); renderAddForm(); renderLog();
+  if(STATE.user.role === "Admin") renderUsersPage();
+}
 
 /* ================================================================
    OFFLINE QUEUE + SYNC
