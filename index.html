@@ -439,7 +439,26 @@
 const CONFIG = {
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyqkcJXyWtbsDql3fTi3hep-4tnjVt_gFmYo7fHurpeQjeEtL_MZLbc9FO7URLVdt-W/exec",
   FACILITY_NAME: "General Hospital Warwar",
-  DEPARTMENTS: ["Lab","Pharmacy","Card Room","Medical Unit","Maternity Unit","ART Unit","Surgical Unit","TB Unit","Clinical Unit"]
+  DEPARTMENTS: ["Lab","Pharmacy","Card Room","Medical Unit","Maternity Unit","ART Unit","Surgical Unit","TB Unit","Clinical Unit"],
+  CATEGORIES: [
+    "Pharmaceuticals & Medications",
+    "Vaccines",
+    "IV Fluids & Infusion Supplies",
+    "Medical Consumables",
+    "Personal Protective Equipment (PPE)",
+    "Surgical Supplies & Instruments",
+    "Wound Care Supplies",
+    "Laboratory Supplies & Reagents",
+    "Diagnostic & Testing Kits",
+    "Medical Equipment & Devices",
+    "Oxygen & Respiratory Supplies",
+    "Dental Supplies",
+    "Maternity & Newborn Supplies",
+    "Linen & Bedding",
+    "Sanitation & Cleaning Supplies",
+    "Nutrition & Dietary Supplies",
+    "Office & Administrative Supplies"
+  ]
 };
 
 // Show the facility name on the login screen, sidebar, and browser tab
@@ -728,7 +747,14 @@ function renderAddForm(){
     <div class="panel-head"><h3>New commodity</h3></div>
     <div class="form-grid">
       <div class="field"><label>Item name</label><input id="f-name"/></div>
-      <div class="field"><label>Category</label><input id="f-category" placeholder="e.g. PPE, Medication, Consumable"/></div>
+      <div class="field"><label>Category</label>
+        <select id="f-category">
+          <option value="">Select category...</option>
+          ${CONFIG.CATEGORIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          <option value="__other__">Other (type manually)</option>
+        </select>
+        <input id="f-category-other" placeholder="Type category name" style="display:none; margin-top:8px;"/>
+      </div>
       <div class="field"><label>Department</label>
         <select id="f-department" ${STATE.user.role==='Admin' ? '' : 'disabled'}>
           ${STATE.user.role==='Admin' ? '<option value="">Select department...</option>' : ''}
@@ -745,14 +771,23 @@ function renderAddForm(){
     <div class="form-actions"><button class="btn primary" id="add-item-btn">Add item</button></div>
   </div>`;
 
+  document.getElementById("f-category").addEventListener("change", (e)=>{
+    document.getElementById("f-category-other").style.display = (e.target.value === "__other__") ? "block" : "none";
+  });
+
   document.getElementById("add-item-btn").addEventListener("click", async ()=>{
     const name = document.getElementById("f-name").value.trim();
     const department = document.getElementById("f-department").value.trim();
     if(!name || !department){ toast("Item name and department are required."); return; }
 
+    const categorySelect = document.getElementById("f-category").value;
+    const category = categorySelect === "__other__"
+      ? document.getElementById("f-category-other").value.trim()
+      : categorySelect;
+
     const item = {
       itemName: name,
-      category: document.getElementById("f-category").value.trim(),
+      category: category,
       department: department,
       unit: document.getElementById("f-unit").value.trim(),
       qtyInStock: Number(document.getElementById("f-qty").value) || 0,
