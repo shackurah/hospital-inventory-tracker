@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>StockRoom — Hospital Inventory Tracker</title>
+<title>StockRoom — General Hospital Warwar</title>
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#163832" />
 <link rel="icon" href="icon-192.png" />
@@ -164,7 +164,13 @@
     flex-direction:column;
   }
   .sidebar .brand-name{ color:#fff; font-size:1.2rem; }
-  .sidebar .brand{ padding: 0 6px 24px 6px; }
+  .sidebar .brand{ padding: 0 6px 4px 6px; }
+  .sidebar-facility{
+    padding: 0 6px 24px 6px;
+    font-size:0.76rem;
+    color: rgba(255,255,255,0.6);
+    font-weight:500;
+  }
   .sidebar .brand-mark{ background: rgba(255,255,255,0.15); }
   .sidebar .brand-mark::before, .sidebar .brand-mark::after{ background:#fff; }
   .nav-item{
@@ -362,7 +368,7 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="brand"><div class="brand-mark"></div><div class="brand-name">StockRoom</div></div>
-    <div class="login-sub">Hospital commodity inventory tracker</div>
+    <div class="login-sub" id="facility-name-login">General Hospital Warwar</div>
     <div class="field">
       <label for="login-username">Username</label>
       <input id="login-username" type="text" autocomplete="username" />
@@ -386,6 +392,7 @@
   <div class="shell">
     <div class="sidebar">
       <div class="brand"><div class="brand-mark"></div><div class="brand-name">StockRoom</div></div>
+      <div class="sidebar-facility" id="facility-name-sidebar">General Hospital Warwar</div>
       <button class="nav-item active" data-page="dashboard"><span class="nav-dot"></span> Dashboard</button>
       <button class="nav-item" data-page="inventory"><span class="nav-dot"></span> Inventory</button>
       <button class="nav-item" data-page="add"><span class="nav-dot"></span> Add Item</button>
@@ -431,8 +438,15 @@
    CONFIG — paste your Apps Script Web App URL between the quotes
    ================================================================ */
 const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyqkcJXyWtbsDql3fTi3hep-4tnjVt_gFmYo7fHurpeQjeEtL_MZLbc9FO7URLVdt-W/exec"
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyqkcJXyWtbsDql3fTi3hep-4tnjVt_gFmYo7fHurpeQjeEtL_MZLbc9FO7URLVdt-W/exec",
+  FACILITY_NAME: "General Hospital Warwar",
+  DEPARTMENTS: ["Lab","Pharmacy","Card Room","Medical Unit","Maternity Unit","ART Unit","Surgical Unit","TB Unit","Clinical Unit"]
 };
+
+// Show the facility name on the login screen, sidebar, and browser tab
+document.getElementById("facility-name-login").textContent = CONFIG.FACILITY_NAME;
+document.getElementById("facility-name-sidebar").textContent = CONFIG.FACILITY_NAME;
+document.title = "StockRoom — " + CONFIG.FACILITY_NAME;
 
 /* ================================================================
    STORAGE HELPERS  (local device storage — works offline)
@@ -641,7 +655,7 @@ function renderDashboard(){
    ================================================================ */
 function renderInventory(){
   const el = document.getElementById("page-inventory");
-  const depts = [...new Set(STATE.inventory.map(i=>i.Department))];
+  const depts = CONFIG.DEPARTMENTS;
 
   let items = scopedInventory();
   if(STATE.deptFilter !== "all") items = items.filter(i=>i.Department === STATE.deptFilter);
@@ -720,7 +734,13 @@ function renderAddForm(){
     <div class="form-grid">
       <div class="field"><label>Item name</label><input id="f-name"/></div>
       <div class="field"><label>Category</label><input id="f-category" placeholder="e.g. PPE, Medication, Consumable"/></div>
-      <div class="field"><label>Department</label><input id="f-department" value="${STATE.user.role==='Admin' ? '' : STATE.user.department}"/></div>
+      <div class="field"><label>Department</label>
+        <select id="f-department" ${STATE.user.role==='Admin' ? '' : 'disabled'}>
+          ${STATE.user.role==='Admin' ? '<option value="">Select department...</option>' : ''}
+          ${CONFIG.DEPARTMENTS.map(d=>`<option value="${d}" ${STATE.user.department===d ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+        ${STATE.user.role==='Admin' ? '' : `<input type="hidden" id="f-department-locked" value="${STATE.user.department}"/>`}
+      </div>
       <div class="field"><label>Unit</label><input id="f-unit" placeholder="e.g. boxes, vials, pcs"/></div>
       <div class="field"><label>Starting quantity</label><input id="f-qty" type="number" value="0"/></div>
       <div class="field"><label>Reorder level</label><input id="f-reorder" type="number" value="0"/></div>
